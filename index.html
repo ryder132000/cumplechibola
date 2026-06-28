@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feliz Cumpleaños</title>
+<style>
+  /* ===== RESET Y BASE ===== */
+  body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Arial', sans-serif; color: white; user-select: none; }
+  
+  /* Sistema de Pantallas y Transiciones */
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 1s ease-in-out, visibility 1s; z-index: 10; }
+  .screen.on { opacity: 1; visibility: visible; pointer-events: auto; }
+  
+  /* ===== PANTALLA DE INICIO (Para liberar el audio) ===== */
+  #start-screen { z-index: 50; background: #000; cursor: pointer; }
+  .start-btn { 
+    padding: 15px 40px; border: 2px solid #ff2d9b; border-radius: 50px; 
+    font-size: 1.2rem; font-family: 'Arial Black', sans-serif; color: #ff2d9b; 
+    text-shadow: 0 0 10px #ff2d9b; box-shadow: 0 0 20px rgba(255,45,155,0.4);
+    animation: pulse 1.5s infinite; letter-spacing: 2px;
+  }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,45,155,0.7); } }
+
+  /* Fondo estrellado global */
+  #stars-canvas { position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none; }
+
+  /* ===== FASE 1: MATRIX ===== */
+  #phase1 { background: transparent; z-index: 20; pointer-events: none; }
+  #matrix-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 21; }
+  #seq-text { 
+    position: relative; z-index: 22; font-size: clamp(3rem, 15vw, 6rem); 
+    font-weight: 900; color: #ff2d9b; text-shadow: 0 0 20px #ff2d9b; 
+    font-family: 'Arial Black', Impact, sans-serif; text-align: center; 
+  }
+  @keyframes popText { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+
+  /* ===== FASE 2: OSITO Y TEXTO ===== */
+  #phase2 { cursor: pointer; z-index: 15; }
+  .bear-container img { width: 220px; border-radius: 15px; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
+  .hb-text { font-size: 2rem; margin-top: 20px; font-weight: bold; color: #fff; text-shadow: 0 0 15px #ff2d9b; font-family: 'Georgia', serif; font-style: italic; animation: float 3s ease-in-out infinite; }
+  .tap-hint { font-size: 14px; margin-top: 15px; opacity: 0.6; letter-spacing: 2px; animation: blink 1.5s infinite; }
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* ===== FASE 3: SOBRE Y CARRUSEL ===== */
+  #phase3 { z-index: 15; perspective: 1000px; }
+  
+  .envelope { position: relative; width: 280px; height: 190px; background: #f0f0f0; border-radius: 5px; cursor: pointer; transition: transform 0.6s ease; box-shadow: 0 15px 35px rgba(0,0,0,0.6); }
+  .envelope .flap { position: absolute; top: 0; left: 0; width: 0; height: 0; border-left: 140px solid transparent; border-right: 140px solid transparent; border-top: 110px solid #e0e0e0; z-index: 3; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: top; }
+  .envelope .body-front { position: absolute; bottom: 0; left: 0; width: 0; height: 0; border-left: 140px solid #d6d6d6; border-right: 140px solid #d6d6d6; border-bottom: 100px solid #cccccc; z-index: 2; pointer-events: none; }
+  .envelope .seal { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); font-size: 35px; z-index: 4; text-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: opacity 0.3s; }
+  .envelope.open .flap { transform: rotateX(180deg); }
+  .envelope.open .seal { opacity: 0; }
+  .envelope.hide { transform: scale(0.5); opacity: 0; pointer-events: none; }
+
+  .carousel { display: none; flex-direction: column; align-items: center; cursor: pointer; }
+  .carousel.on { display: flex; animation: slideUp 0.8s forwards; }
+  .polaroid { background: white; padding: 12px 12px 35px 12px; border-radius: 4px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); transform: rotate(-3deg); transition: transform 0.3s; }
+  .polaroid img { width: 240px; height: 260px; object-fit: cover; border-radius: 2px; }
+  .carousel-text { margin-bottom: 25px; font-family: 'Georgia', serif; font-style: italic; font-size: 1.3rem; color: #ff2d9b; text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); max-width: 90%; line-height: 1.4; min-height: 60px; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(50px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ===== FASE 4: EXPLOSIÓN DE CORAZÓN Y TEXTOS LATERALES ===== */
+  #phase4 { z-index: 15; }
+  
+  /* Aura de luz detrás del corazón */
+  #heart-glow {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 70vw; height: 70vw; max-width: 600px; max-height: 600px;
+    background: radial-gradient(circle, rgba(255,45,155,0.15) 0%, rgba(0,0,0,0) 65%);
+    opacity: 0; transition: opacity 2s ease 2s; z-index: 1; pointer-events: none;
+  }
+  #phase4.on #heart-glow { opacity: 1; }
+
+  /* Título derecho */
+  #htitle { 
+    position: absolute; top: 50%; right: 3%; z-index: 30; color: #ff2d9b; 
+    font-size: clamp(16px, 4vw, 30px); letter-spacing: 2px; 
+    text-align: right; text-shadow: 0 0 15px #ff2d9b, 0 0 8px rgba(0,0,0,0.8); 
+    font-family: 'Arial Black', sans-serif;
+    width: 28%; max-width: 250px;
+    /* Inicia ligeramente movido a la derecha y transparente */
+    opacity: 0; transform: translate(30px, -50%); transition: opacity 1.5s ease 2.5s, transform 1.5s ease 2.5s; 
+  }
+  
+  /* Frase izquierda */
+  #fmsg { 
+    position: absolute; top: 50%; left: 3%; z-index: 30; 
+    font-size: clamp(14px, 3.5vw, 20px); color: rgba(255,255,255,.9); 
+    text-align: left; font-style: italic; width: 28%; max-width: 250px; 
+    line-height: 1.6; font-family: 'Georgia', serif; 
+    text-shadow: 0 0 8px rgba(0,0,0,0.8);
+    /* Inicia ligeramente movida a la izquierda y transparente */
+    opacity: 0; transform: translate(-30px, -50%); transition: opacity 1.5s ease 3s, transform 1.5s ease 3s; 
+  }
+
+  /* Animación final hacia su posición original */
+  #phase4.on #htitle { opacity: 1; transform: translate(0, -50%); }
+  #phase4.on #fmsg { opacity: 1; transform: translate(0, -50%); }
+
+  #heart-container { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .heart-img { 
+    position: absolute; width: 50px; height: 50px; object-fit: cover; 
+    border: 3px solid white; border-radius: 4px; 
+    box-shadow: 0 0 15px rgba(255,45,155,0.6); 
+    opacity: 0; transform: translate(0, 0) scale(0);
+    transition: transform 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.8s; 
+  }
+</style>
+</head>
+<body>
+
+  <audio id="bg-music" loop preload="auto">
+    <source src="musica.mp3" type="audio/mpeg">
+  </audio>
+
+  <div id="start-screen" class="screen on" onclick="startExperience()">
+    <div class="start-btn">TOCAR PARA EMPEZAR</div>
+  </div>
+
+  <canvas id="stars-canvas"></canvas>
+
+  <div id="phase1" class="screen">
+    <canvas id="matrix-canvas"></canvas>
+    <div id="seq-text"></div>
+  </div>
+
+  <div id="phase2" class="screen" onclick="goToPhase(3)">
+    <div class="bear-container">
+      <img src="oso.gif" alt="Osito de cumpleaños" onerror="this.src='https://media.giphy.com/media/xT0xezQGU5xCDJuCPe/giphy.gif'">
+    </div>
+    <div class="hb-text">Happy Birthday</div>
+    <div class="tap-hint">TOCA LA PANTALLA</div>
+  </div>
+
+  <div id="phase3" class="screen">
+    <div class="envelope" id="envelope" onclick="openEnvelope()">
+      <div class="flap"></div>
+      <div class="seal">❤️</div>
+      <div class="body-front"></div>
+    </div>
+    
+    <div class="carousel" id="carousel" onclick="nextPhoto()">
+      <div class="carousel-text" id="car-text"></div>
+      <div class="polaroid" id="polaroid-frame">
+        <img id="car-img" src="" alt="Foto Polaroid">
+      </div>
+    </div>
+  </div>
+
+  <div id="phase4" class="screen">
+    <div id="heart-glow"></div>
+    
+    <div id="htitle">NUESTRA AMISTAD</div>
+    
+    <div id="heart-container"></div>
+    
+    <div id="fmsg">Gracias por cada momento inolvidable.<br>¡Te quiero infinito! 🩷</div>
+  </div>
+
+<script>
+  // ===== INICIO DE LA EXPERIENCIA (MÚSICA + MATRIX) =====
+  function startExperience() {
+    let aud = document.getElementById('bg-music');
+    if (aud) {
+      aud.play().catch(e => console.log("Permiso de audio denegado."));
+    }
+    
+    document.getElementById('start-screen').classList.remove('on');
+    document.getElementById('phase1').classList.add('on');
+    
+    setTimeout(playSequence, 500);
+  }
+
+  // ===== CONTROLADOR CENTRAL =====
+  function goToPhase(p) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+    document.getElementById('phase' + p).classList.add('on');
+    if(p === 4) startExplosion();
+  }
+
+  // ===== ESTRELLAS (FONDO CONSTANTE) =====
+  const cStars = document.getElementById('stars-canvas');
+  const ctxS = cStars.getContext('2d');
+  function initStars() {
+    cStars.width = window.innerWidth;
+    cStars.height = window.innerHeight;
+  }
+  window.addEventListener('resize', initStars);
+  initStars();
+  const stars = Array.from({length: 120}, () => ({
+    x: Math.random() * cStars.width, y: Math.random() * cStars.height,
+    r: Math.random() * 1.5, dy: Math.random() * 0.4 + 0.1
+  }));
+  function animateStars() {
+    ctxS.clearRect(0, 0, cStars.width, cStars.height);
+    ctxS.fillStyle = 'rgba(255,255,255,0.8)';
+    stars.forEach(s => {
+      ctxS.beginPath(); ctxS.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctxS.fill();
+      s.y += s.dy; if(s.y > cStars.height) s.y = 0;
+    });
+    requestAnimationFrame(animateStars);
+  }
+  animateStars();
+
+  // ===== FASE 1: LLUVIA MATRIX ROSA =====
+  const cMatrix = document.getElementById('matrix-canvas');
+  const ctxM = cMatrix.getContext('2d');
+  cMatrix.width = window.innerWidth; cMatrix.height = window.innerHeight;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレゲゼデベペオォコソトノホモヨョロゴゾドボポヴッン'.split('');
+  const fSize = 16; const cols = cMatrix.width / fSize;
+  const drops = Array(Math.floor(cols)).fill(1);
+  
+  let matrixInterval = setInterval(() => {
+    ctxM.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctxM.fillRect(0, 0, cMatrix.width, cMatrix.height);
+    ctxM.fillStyle = '#ff2d9b'; 
+    ctxM.font = fSize + 'px monospace';
+    for (let i = 0; i < drops.length; i++) {
+      const char = chars[Math.floor(Math.random() * chars.length)];
+      ctxM.fillText(char, i * fSize, drops[i] * fSize);
+      if (drops[i] * fSize > cMatrix.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    }
+  }, 35);
+
+  // ===== FASE 1: SECUENCIA DE TEXTO =====
+  const sequence = ["3", "2", "1", "Feliz", "Cumpleaños", "para", "Mael", "🩷"];
+  let seqIndex = 0;
+  const seqTextDOM = document.getElementById('seq-text');
+  
+  function playSequence() {
+    if (seqIndex < sequence.length) {
+      seqTextDOM.style.animation = 'none';
+      seqTextDOM.offsetHeight; 
+      seqTextDOM.innerText = sequence[seqIndex];
+      seqTextDOM.style.animation = 'popText 0s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
+      seqIndex++;
+      setTimeout(playSequence, 900);
+    } else {
+      clearInterval(matrixInterval);
+      setTimeout(() => goToPhase(2), 800); 
+    }
+  }
+
+  // ===== FASE 3: LÓGICA DEL SOBRE Y LAS 10 FOTOS =====
+  const photos = [
+    { src: 'foto1.jpg', text: 'Feliz cumpleaños... 🧡' },
+    { src: 'foto2.jpg', text: 'Eres una persona muy especial...' },
+    { src: 'foto3.jpg', text: 'Espero que hoy sea un gran día ✨' },
+    { src: 'foto4.jpg', text: 'Por más momentos así...' },
+    { src: 'foto5.jpg', text: 'Siempre a tu lado 💕' },
+    { src: 'foto6.jpg', text: 'Gracias por tantas risas' },
+    { src: 'foto7.jpg', text: 'Una aventura más...' },
+    { src: 'foto8.jpg', text: 'Que todos tus deseos se cumplan' },
+    { src: 'foto9.jpg', text: 'Te celebro hoy y siempre 🎉' },
+    { src: 'foto10.jpg', text: 'Te quiero infinito... 🩷' }
+  ];
+  let photoIndex = 0;
+
+  function openEnvelope() {
+    const env = document.getElementById('envelope');
+    env.classList.add('open');
+    setTimeout(() => {
+      env.classList.add('hide');
+      setTimeout(() => {
+        env.style.display = 'none';
+        const car = document.getElementById('carousel');
+        car.classList.add('on');
+        updateCarousel();
+      }, 500);
+    }, 800);
+  }
+
+  function updateCarousel() {
+    document.getElementById('car-img').src = photos[photoIndex].src;
+    document.getElementById('car-text').innerText = photos[photoIndex].text;
+  }
+
+  function nextPhoto() {
+    photoIndex++;
+    if(photoIndex < photos.length) {
+      const pol = document.getElementById('polaroid-frame');
+      pol.style.transform = `rotate(${Math.random()*8 - 4}deg) scale(0.95)`;
+      setTimeout(() => {
+        updateCarousel();
+        pol.style.transform = `rotate(${Math.random()*8 - 4}deg) scale(1)`;
+      }, 150);
+    } else {
+      goToPhase(4);
+    }
+  }
+
+  // ===== FASE 4: CÁLCULO MATEMÁTICO Y EXPLOSIÓN DEL CORAZÓN =====
+  function startExplosion() {
+    const hc = document.getElementById('heart-container');
+    const numPics = 45; 
+    const scale = Math.min(window.innerWidth, window.innerHeight) / 38; 
+    
+    for(let i=0; i<numPics; i++) {
+      const img = document.createElement('img');
+      img.src = photos[i % photos.length].src; 
+      img.className = 'heart-img';
+      
+      const t = (i / numPics) * Math.PI * 2;
+      const x = 16 * Math.pow(Math.sin(t), 3);
+      const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)); 
+      
+      const tx = x * scale;
+      const ty = y * scale;
+      const rotation = Math.random() * 30 - 15; 
+      
+      hc.appendChild(img);
+      
+      setTimeout(() => {
+        img.style.opacity = '1';
+        img.style.transform = `translate(${tx}px, ${ty}px) rotate(${rotation}deg) scale(1)`;
+      }, 100 + (i * 50)); 
+    }
+  }
+</script>
+</body>
+</html>
